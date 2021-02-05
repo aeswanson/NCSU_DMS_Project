@@ -1,0 +1,147 @@
+---
+title: "Simple and Mixed Model Analysis"
+author: "Alexis Swanson"
+date: "2/4/2021"
+output: html_document
+---
+
+#Histograms of the 3 Approaches for tc
+  
+```{r, echo=FALSE, message=FALSE}
+
+data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
+
+hist(data$tc.B)
+hist(data$tc.S)
+hist(data$tc.I)
+
+hist(log(data$tc.I))
+
+```
+The log of the Iterative Solution has the most normal distribution. We need to decide which solution to use - I am still not sure how to decide. 
+
+I also need to finish the calibration and adjust the tc results based upon the updated coefficient. I will finish that this week.
+
+# First Linear Model
+  # All Predictors
+
+```{r, echo=FALSE, message=FALSE}
+data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
+
+library(ggplot2)
+
+model_simple <-lm(tc.I ~ Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+summary(model_simple)
+
+par(mfrow = c(2,2))
+plot(model_simple)
+par(mfrow = c(1,1))
+qqnorm(resid(model_simple))
+qqline(resid(model_simple))
+
+boxplot(log(tc.I) ~ Test.Location, data=data)
+boxplot(log(tc.I) ~ Land.Use, data=data)
+boxplot(log(tc.I) ~ Soil.Texture, data=data)
+
+```
+
+# Linear Model with just EC and Moist
+  # Based on the results those were the only significant factors
+  
+```{r, echo=FALSE, message=FALSE}
+data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
+
+model_simple2 <-lm(tc.I ~ EC + Cor.Moist, data = data)
+summary(model_simple2)
+par(mfrow = c(2,2))
+plot(model_simple2)
+par(mfrow = c(1,1))
+qqnorm(resid(model_simple2))
+qqline(resid(model_simple2))
+```
+  
+# Linear Model excluding the outliers
+
+```{r, echo=FALSE, message=FALSE}
+data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
+
+model_simple3 <-lm(tc.I ~ Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data[-c(18,23, 29, 38,39, 50, 26, 45, 33),])
+summary(model_simple3)
+par(mfrow = c(2,2))
+plot(model_simple3)
+par(mfrow = c(1,1))
+qqnorm(resid(model_simple3))
+qqline(resid(model_simple3))
+```
+
+# Linear Model excluding the outliers with significant factors
+  # EC, Moist, D50 and Cu
+  
+```{r, echo=FALSE, message=FALSE}
+data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
+
+model_simple4 <-lm(tc.I ~ EC + Cor.Moist + D50 + Cu, data = data[-c(18,23, 29, 38,39, 50, 26, 45, 33),])
+summary(model_simple4)
+par(mfrow = c(2,2))
+plot(model_simple4)
+par(mfrow = c(1,1))
+qqnorm(resid(model_simple4))
+qqline(resid(model_simple4))
+```
+
+# Mixed Model with 2 Random Factors
+  # Test Location and Land Use
+  
+```{r, echo=FALSE, message=FALSE}
+data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
+
+library(lme4)
+
+model_mixed <-lmer(tc.I~(1|Test.Location) + (1|Land.Use) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+summary(model_mixed)
+anova(model_mixed)
+ranef(model_mixed)
+
+par(mfrow = c(1,1))
+plot(model_mixed)
+qqnorm(resid(model_mixed))
+qqline(resid(model_mixed))
+
+```
+
+# Mixed Model with only Test Location as Random Factor
+
+```{r, echo=FALSE, message=FALSE}
+data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
+
+model_mixed2 <-lmer(tc.I~(1|Test.Location) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+summary(model_mixed2)
+anova(model_mixed2)
+ranef(model_mixed2)
+
+par(mfrow = c(1,1))
+plot(model_mixed2)
+qqnorm(resid(model_mixed2))
+qqline(resid(model_mixed2))
+
+```
+
+#Mixed Model with only Land Use as Random Factor
+
+```{r, echo=FALSE, message=FALSE}
+data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
+
+model_mixed3 <-lmer(tc.I~(1|Test.Location) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+summary(model_mixed3)
+anova(model_mixed3)
+ranef(model_mixed3)
+
+par(mfrow = c(1,1))
+plot(model_mixed3)
+qqnorm(resid(model_mixed3))
+qqline(resid(model_mixed3))
+```
+
+
+  
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
