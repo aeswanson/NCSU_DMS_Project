@@ -2,7 +2,9 @@
 title: "Simple and Mixed Model Analysis"
 author: "Alexis Swanson"
 date: "2/4/2021"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 #Histograms of the 3 Approaches for tc
@@ -16,21 +18,32 @@ hist(data$tc.S)
 hist(data$tc.I)
 
 hist(log(data$tc.I))
+data$log.tc = log(data$tc.I)
 
+range(data$tc.B)
+range(data$tc.S)
+range(data$tc.I)
 ```
-The log of the Iterative Solution has the most normal distribution. We need to decide which solution to use - I am still not sure how to decide. 
+The log of the Iterative Solution has the most normal distribution. 
 
-I also need to finish the calibration and adjust the tc results based upon the updated coefficient. I will finish that this week.
+The ranges are for Blaisdell, Scour Depth and the Iterative solutions respectively. 
+
+After our discussion on 2/4 the range of expected critical shear stress was estimated using the min and max median grain size and the shield's diagram. This range was 0.97 - 27.5 Pa. Based upon this and the normal distribution of the log of the Iterative Solution it was chosen to move forward with the Iterative Solution for this analysis.
+
+I finished the calibration and will now go back to adjust the JET Spreadsheets to account for the change in the coefficients. This will change the values of my critical shear stresses but I do not anticipate a large change.
 
 # First Linear Model
   # All Predictors
 
 ```{r, echo=FALSE, message=FALSE}
 data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
+data$log.tc = log(data$tc.I)
+data$log.tc[data$log.tc== "-Inf"] <- 0
+
 
 library(ggplot2)
 
-model_simple <-lm(tc.I ~ Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+model_simple <-lm(log.tc ~ Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
 summary(model_simple)
 
 par(mfrow = c(2,2))
@@ -39,19 +52,23 @@ par(mfrow = c(1,1))
 qqnorm(resid(model_simple))
 qqline(resid(model_simple))
 
-boxplot(log(tc.I) ~ Test.Location, data=data)
-boxplot(log(tc.I) ~ Land.Use, data=data)
-boxplot(log(tc.I) ~ Soil.Texture, data=data)
+boxplot(log.tc ~ Test.Location, data=data)
+boxplot(log.tc ~ Land.Use, data=data)
+boxplot(log.tc ~ Soil.Texture, data=data)
 
 ```
+The significant predictors in this model include: the intercept, EC and Moisture content. These variables will be used in the next linear model. The R-Squared is low at 0.2076 but the p-value shows the model significant at 0.03574.
+
+The residuals for the model are pretty good. They follow the predicted versus sample line pretty closely only varying at the upper limit.
+
+Here I also plotted box plots to see if there was a significant difference in the categorical variables. The field and lab almost show a statistical difference but are still overlapping slightly. The rural, urban and ultra urban are not showing much of a difference. The soil texture however seems to have something going on where the critical shear stress could be statiscially different for each soil texture.
 
 # Linear Model with just EC and Moist
   # Based on the results those were the only significant factors
   
 ```{r, echo=FALSE, message=FALSE}
-data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
 
-model_simple2 <-lm(tc.I ~ EC + Cor.Moist, data = data)
+model_simple2 <-lm(log.tc ~ EC + Cor.Moist, data = data)
 summary(model_simple2)
 par(mfrow = c(2,2))
 plot(model_simple2)
@@ -59,45 +76,16 @@ par(mfrow = c(1,1))
 qqnorm(resid(model_simple2))
 qqline(resid(model_simple2))
 ```
-  
-# Linear Model excluding the outliers
-
-```{r, echo=FALSE, message=FALSE}
-data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
-
-model_simple3 <-lm(tc.I ~ Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data[-c(18,23, 29, 38,39, 50, 26, 45, 33),])
-summary(model_simple3)
-par(mfrow = c(2,2))
-plot(model_simple3)
-par(mfrow = c(1,1))
-qqnorm(resid(model_simple3))
-qqline(resid(model_simple3))
-```
-
-# Linear Model excluding the outliers with significant factors
-  # EC, Moist, D50 and Cu
-  
-```{r, echo=FALSE, message=FALSE}
-data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
-
-model_simple4 <-lm(tc.I ~ EC + Cor.Moist + D50 + Cu, data = data[-c(18,23, 29, 38,39, 50, 26, 45, 33),])
-summary(model_simple4)
-par(mfrow = c(2,2))
-plot(model_simple4)
-par(mfrow = c(1,1))
-qqnorm(resid(model_simple4))
-qqline(resid(model_simple4))
-```
+Here the model shows that all factors are significant. The R-squared went down a little bit but the p-value is better. When looking at the residuals of this model we do see a little bit more variation. My conclusion from these first two linear models would be that the "best" simple linear model is probably somewhere in between. (i.e. adding a few more variables back that were close to significance in the first model but still limiting some of the variables.)
 
 # Mixed Model with 2 Random Factors
   # Test Location and Land Use
   
 ```{r, echo=FALSE, message=FALSE}
-data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
 
 library(lme4)
 
-model_mixed <-lmer(tc.I~(1|Test.Location) + (1|Land.Use) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+model_mixed <-lmer(log.tc~(1|Test.Location) + (1|Land.Use) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
 summary(model_mixed)
 anova(model_mixed)
 ranef(model_mixed)
@@ -108,13 +96,16 @@ qqnorm(resid(model_mixed))
 qqline(resid(model_mixed))
 
 ```
+This is the first mixed model where I used two random factors, test location and land use. The random effects of this model account for about 30% of the variance observed in the data. This is broken into about 26% for test location and 4% for land use. This implies that test location is actually contributing to the variance more than the land use. This is also justified in the box plots from the beginning of the report. Based on this we may consider using soil texture as a random variable since there seemed to be difference between the different categories in the box plots. 
+
+The residuals of this model are similar to the previous simple linear model expect now we are seeing more variation at the lower end more the upper end. 
+
 
 # Mixed Model with only Test Location as Random Factor
 
 ```{r, echo=FALSE, message=FALSE}
-data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
 
-model_mixed2 <-lmer(tc.I~(1|Test.Location) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+model_mixed2 <-lmer(log.tc~(1|Test.Location) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
 summary(model_mixed2)
 anova(model_mixed2)
 ranef(model_mixed2)
@@ -125,13 +116,13 @@ qqnorm(resid(model_mixed2))
 qqline(resid(model_mixed2))
 
 ```
+This mixed model only has Test Location as a random factor. Test location is still accounting for 26% of the variance but the model's residuals do look better than the first mixed model. 
 
-#Mixed Model with only Land Use as Random Factor
+# Mixed Model with only Land Use as Random Factor
 
 ```{r, echo=FALSE, message=FALSE}
-data <- read.csv("C:\\Users\\swans\\Documents\\Research\\Site_Data_Feb_2_2021.csv")
 
-model_mixed3 <-lmer(tc.I~(1|Test.Location) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+model_mixed3 <-lmer(tc.I~(1|Land.Use) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
 summary(model_mixed3)
 anova(model_mixed3)
 ranef(model_mixed3)
@@ -142,6 +133,20 @@ qqnorm(resid(model_mixed3))
 qqline(resid(model_mixed3))
 ```
 
+In this model land use is only accounting for 1% of the variance and therefore I conclude that this model is not the best. This conclusion is also supported by the residuals as the points show a lot of variation from the predicted versus sample line. 
+
+# Conclusion
+
+From this point I am going to adjust the values for tc based upon the change in the coefficient for the different water temperatures. After those are adjusted I will re-run all the models to confirm the conclusions to this point will not change.
+
+Next Steps:
+  - Can we get a better model by adding some of the variables back in to the simple linear model. Things to consider in this step are     making a better model with as little variables as possible - easier to use. 
+  - Consider Soil Texture as a random variable. 
+  - Consider clustering of data by soil texture.
+  - Consider clustering of data by test location.
+  
+*One thing that I think we need to keep in mind after reading the materials more is that the random variable isn't neccessarily a variable that is random in nature but that its effect on the response variable is unknown. 
 
   
+*This is only for my reference when writing the code in R*  
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
