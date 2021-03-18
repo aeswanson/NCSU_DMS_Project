@@ -27,6 +27,10 @@ data$log.tc[data$log.tc== "-Inf"] <- 0
 range(data$tc.B)
 range(data$tc.S)
 range(data$tc.I)
+
+boxplot(log.tc ~ Test.Location, data=data)
+boxplot(log.tc ~ Land.Use, data=data)
+boxplot(log.tc ~ Soil.Texture, data=data)
 ```
 
 The ranges are for Blaisdell, Scour Depth and the Iterative solutions respectively. 
@@ -40,7 +44,7 @@ After our discussion on 2/18 the concensus was to move forward using the Blaisde
 
 library(ggplot2)
 
-model_simple <-lm(log.tc ~ Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+model_simple <-lm(tc.B ~ Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
 summary(model_simple)
 
 par(mfrow = c(2,2))
@@ -49,14 +53,24 @@ par(mfrow = c(1,1))
 qqnorm(resid(model_simple))
 qqline(resid(model_simple))
 
-boxplot(log.tc ~ Test.Location, data=data)
-boxplot(log.tc ~ Land.Use, data=data)
-boxplot(log.tc ~ Soil.Texture, data=data)
 
+library(tidyverse)
+
+data$Fitted <- model_simple$fitted.values
+
+# Create a plot showing a one to one of the simulated and observed tc values
+ggplot() + 
+  geom_point(data = data, 
+             aes(x = Fitted, y = log.tc),
+             color = "black") +
+  geom_abline(intercept=0, slope=1) +
+  theme_bw() + xlim(-5,5) + ylim(-5,5) +
+  labs(x = expression("Simulated"),
+       y = expression(" Observed"))
 ```
-There is not any statistically significant variables in this model. Cu and EC are the closest.
 
 Here I also plotted box plots to see if there was a significant difference in the categorical variables. The field and lab almost show a statistical difference but are still overlapping slightly. The rural, urban and ultra urban are not showing much of a difference. The soil texture however seems to have something going on where the critical shear stress could be statiscially different for each soil texture.
+
 
 
 # Mixed Model with 3 Random Factors
@@ -130,7 +144,7 @@ qqline(resid(model_mixed4))
 
 ```{r, echo=FALSE, message=FALSE}
 
-model_mixed5 <-lmer(tc.I~(1|Soil.Texture) + (1|Land.Use) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
+model_mixed5 <-lmer(tc.B~(1|Soil.Texture) + (1|Land.Use) + Temp + EC + Cor.Moist + D50 + Cu + Cc + GSD + Pass200, data = data)
 summary(model_mixed5)
 anova(model_mixed5)
 ranef(model_mixed5)
@@ -139,12 +153,334 @@ par(mfrow = c(1,1))
 plot(model_mixed5)
 qqnorm(resid(model_mixed5))
 qqline(resid(model_mixed5))
+
+library(tidyverse)
+
+data$Fitted_Mixed <- predict(model_mixed5)
+
+data$Residuals_Mixed <- resid(model_mixed5)
+data$Residuals_Simple <- resid(model_simple)
+
+#Create a plot showing both residuals
+ggplot() + 
+  geom_point(data = data, 
+             aes(x = Residuals_Mixed, y = log.tc),
+             color = "red") +
+  geom_point(data = data,
+             aes(x = Residuals_Simple, y = log.tc),
+             color = "black") +
+  geom_abline(intercept=0, slope=1) +
+  theme_bw() + xlim(-5,5) + ylim(-5,5) +
+  labs(x = expression("Simulated"),
+       y = expression(" Observed"))
+
+# Create a plot showing a one to one of the simulated and observed tc values
+ggplot() + 
+  geom_point(data = data, 
+             aes(x = Fitted_Mixed, y = tc.B),
+             color = "red") +
+  geom_point(data = data,
+             aes(x = Fitted, y = tc.B),
+             color = "black") +
+  geom_abline(intercept=0, slope=1) +
+  theme_bw() + xlim(-2.5,5) + ylim(-2.5,5) +
+  labs(x = expression("Simulated"),
+       y = expression(" Observed"))
 ```
 
 
 # Conclusion
 
- 
+
+# Load new data that includes bulk density and water temperature (59 observations)
+``````{r, echo=FALSE, message=FALSE}
+
+data_limited <- read.csv("/Users/swans/Documents/Research/SiteData_Mar_3_2021_limited.csv")
+
+data_limited$log.tc = log(data_limited$tc.B)
+data_limited$log.tc[data_limited$log.tc== "-Inf"] <- 0
+
+```
+
+# Simple Linear Model using limited data with all predictors
+
+```{r, echo=FALSE, message=FALSE}
+
+library(ggplot2)
+
+model_simple_l <-lm(log.tc ~ Temp + EC + Cor.Moist + WTemp + BD + D50 + Cu + Cc + GSD + Pass200, data = data_limited)
+summary(model_simple_l)
+
+par(mfrow = c(2,2))
+plot(model_simple_l)
+par(mfrow = c(1,1))
+qqnorm(resid(model_simple_l))
+qqline(resid(model_simple_l))
+```
+
+#Simple linear model using limited data and only signifcant predictors
+
+```{r, echo=FALSE, message=FALSE}
+
+library(ggplot2)
+
+model_simple_l2 <-lm(log.tc ~ WTemp + D50 + Cu, data = data_limited)
+summary(model_simple_l2)
+
+par(mfrow = c(2,2))
+plot(model_simple_l2)
+par(mfrow = c(1,1))
+qqnorm(resid(model_simple_l2))
+qqline(resid(model_simple_l2))
+
+
+```
+
+# Mixed Model with limited data and only Land Use as a random factor
+```{r, echo=FALSE, message=FALSE}
+
+library(lme4)
+
+model_mixed_l1 <-lmer(tc.I~(1|Land.Use) + Temp + EC + Cor.Moist + WTemp + BD + D50 + Cu + Cc + GSD + Pass200, data = data_limited)
+summary(model_mixed_l1)
+anova(model_mixed_l1)
+ranef(model_mixed_l1)
+
+par(mfrow = c(1,1))
+plot(model_mixed_l1)
+qqnorm(resid(model_mixed_l1))
+qqline(resid(model_mixed_l1))
+```
+
+
+# Mixed Model with limited data and only Soil Texture as a random factor
+```{r, echo=FALSE, message=FALSE}
+
+library(lme4)
+
+model_mixed_l2 <-lmer(tc.I~(1|Soil.Texture) + Temp + EC + Cor.Moist + WTemp + BD + D50 + Cu + Cc + GSD + Pass200, data = data_limited)
+summary(model_mixed_l2)
+anova(model_mixed_l2)
+ranef(model_mixed_l2)
+
+par(mfrow = c(1,1))
+plot(model_mixed_l2)
+qqnorm(resid(model_mixed_l2))
+qqline(resid(model_mixed_l2))
+```
+
+# Mixed Model with limited data and both Land Use and Soil Texture as random factors
+
+```{r, echo=FALSE, message=FALSE}
+
+library(lme4)
+
+model_mixed_l3 <-lmer(tc.I~(1|Soil.Texture) + (1|Land.Use) + Temp + EC + Cor.Moist + WTemp + BD + D50 + Cu + Cc + GSD + Pass200, data = data_limited)
+summary(model_mixed_l3)
+anova(model_mixed_l3)
+ranef(model_mixed_l3)
+
+par(mfrow = c(1,1))
+plot(model_mixed_l3)
+qqnorm(resid(model_mixed_l3))
+qqline(resid(model_mixed_l3))
+```
+
+# Mixed Model with limited data, Soil Texture and only sig variables from simple linear model
+
+```{r, echo=FALSE, message=FALSE}
+
+library(lme4)
+
+model_mixed_l4 <-lmer(tc.I~(1|Soil.Texture) + WTemp + D50 + Cu, data = data_limited)
+summary(model_mixed_l4)
+anova(model_mixed_l4)
+ranef(model_mixed_l4)
+
+par(mfrow = c(1,1))
+plot(model_mixed_l4)
+qqnorm(resid(model_mixed_l4))
+qqline(resid(model_mixed_l4))
+```
+
+# Load limited data based on water temp, this dataset does not include BD (69 observations)
+
+``````{r, echo=FALSE, message=FALSE}
+
+data_wtemp <- read.csv("/Users/swans/Documents/Research/SiteData_Mar_3_2021_wtemp.csv")
+
+data_wtemp$log.tc = log(data_wtemp$tc.B)
+data_wtemp$log.tc[data_wtemp$log.tc== "-Inf"] <- 0
+
+```
+
+# Simple Linear Model using limited data based on watertemp with all predictors
+
+```{r, echo=FALSE, message=FALSE}
+
+library(ggplot2)
+
+model_simple_w <-lm(tc.B ~ Temp + EC + Cor.Moist + WTemp + D50 + Cu + Cc + GSD + Pass200, data = data_wtemp)
+summary(model_simple_w)
+
+par(mfrow = c(2,2))
+plot(model_simple_w)
+par(mfrow = c(1,1))
+qqnorm(resid(model_simple_w))
+qqline(resid(model_simple_w))
+
+library(tidyverse)
+
+data_wtemp$Fitted <- model_simple_w$fitted.values
+
+# Create a plot showing a one to one of the simulated and observed tc values
+ggplot() + 
+  geom_point(data = data_wtemp, 
+             aes(x = Fitted, y = tc.B),
+             color = "black") +
+  geom_abline(intercept=0, slope=1) +
+  theme_bw() + xlim(-5,5) + ylim(-5,5) +
+  labs(x = expression("Simulated"),
+       y = expression(" Observed"))
+
+# Create a plot showing a one to one of the simulated and observed tc values for the three models
+ggplot() + 
+  geom_point(data = data, 
+             aes(x = Fitted_Mixed, y = tc.B),
+             color = "red") +
+  geom_point(data = data,
+             aes(x = Fitted, y = tc.B),
+             color = "black") +
+  geom_point(data = data_wtemp,
+             aes(x = Fitted, y = tc.B),
+             color = "blue") +
+  geom_abline(intercept=0, slope=1) +
+  theme_bw() + xlim(-5,5) + ylim(-5,5) +
+  labs(x = expression("Simulated"),
+       y = expression(" Observed"))
+```
+
+
+# Mixed Model with limited data and only Land Use as a random factor
+```{r, echo=FALSE, message=FALSE}
+
+library(lme4)
+
+model_mixed_w1 <-lmer(tc.I~(1|Land.Use) + Temp + EC + Cor.Moist + WTemp + D50 + Cu + Cc + GSD + Pass200, data = data_wtemp)
+summary(model_mixed_w1)
+anova(model_mixed_w1)
+ranef(model_mixed_w1)
+
+par(mfrow = c(1,1))
+plot(model_mixed_w1)
+qqnorm(resid(model_mixed_w1))
+qqline(resid(model_mixed_w1))
+```
+
+
+# Mixed Model with limited data and only Soil Texture as a random factor
+```{r, echo=FALSE, message=FALSE}
+
+library(lme4)
+
+model_mixed_w2 <-lmer(tc.B~(1|Soil.Texture) + Temp + EC + Cor.Moist + WTemp + D50 + Cu + Cc + GSD + Pass200, data = data_wtemp)
+summary(model_mixed_w2)
+anova(model_mixed_w2)
+ranef(model_mixed_w2)
+
+par(mfrow = c(1,1))
+plot(model_mixed_w2)
+qqnorm(resid(model_mixed_w2))
+qqline(resid(model_mixed_w2))
+```
+
+# Mixed Model with limited data and both Land Use and Soil Texture as random factors
+
+```{r, echo=FALSE, message=FALSE}
+
+library(lme4)
+
+model_mixed_w3 <-lmer(tc.B~(1|Soil.Texture) + (1|Land.Use) + Temp + EC + Cor.Moist + WTemp + D50 + Cu + Cc + GSD + Pass200, data = data_wtemp)
+summary(model_mixed_w3)
+anova(model_mixed_w3)
+ranef(model_mixed_w3)
+
+par(mfrow = c(1,1))
+plot(model_mixed_w3)
+qqnorm(resid(model_mixed_w3))
+qqline(resid(model_mixed_w3))
+
+data_wtemp$Fitted_Mixed <- predict(model_mixed_w3)
+
+
+```
+
+# Calculate Model Statistics for the Four Models and Compare
+
+```{r}
+
+# Create a plot showing a one to one of the simulated and observed tc values for the four models
+ggplot() + 
+  geom_point(data = data, 
+             aes(x = Fitted_Mixed, y = tc.B),
+             color = "red") +
+  geom_point(data = data,
+             aes(x = Fitted, y = tc.B),
+             color = "black") +
+  geom_point(data = data_wtemp,
+             aes(x = Fitted, y = tc.B),
+             color = "blue") +
+  geom_point(data = data_wtemp,
+             aes(x = Fitted_Mixed, y = tc.B),
+             color = "green") +
+  geom_abline(intercept=0, slope=1) +
+  theme_bw() + xlim(0,5) + ylim(0,5) +
+  labs(x = expression("Simulated"),
+       y = expression(" Observed"))
+
+# Set up an empty data frame to compile results of the four models
+model_statistics <- data.frame(matrix(ncol = 5, nrow = 4))
+x <- c("Model", "RMSE", "EF", "r", "Bias")
+colnames(model_statistics) <- x
+
+model_statistics$Model <- c("Simple Model", "Mixed Model", "Simple with WTemp", "Mixed with WTemp")
+
+#Calculate the RMSE
+RMSE_Simple <- sqrt(mean((data$tc.B - data$Fitted)^2))
+RMSE_Mixed <- sqrt(mean((data$tc.B - data$Fitted_Mixed)^2))
+RMSE_WTemp_Simple <- sqrt(mean((data$tc.B - data_wtemp$Fitted)^2))
+RMSE_WTemp_Mixed <- sqrt(mean((data$tc.B - data_wtemp$Fitted_Mixed)^2))
+
+model_statistics$RMSE <- c(RMSE_Simple, RMSE_Mixed, RMSE_WTemp_Simple, RMSE_WTemp_Mixed)
+
+#Calculate EF
+EF_Simple <- 1 - (sum((data$tc.B-data$Fitted)^2)/sum((data$tc.B-mean(data$Fitted))^2))
+EF_Mixed <- 1 - (sum((data$tc.B-data$Fitted_Mixed)^2)/sum((data$tc.B-mean(data$Fitted_Mixed))^2))
+EF_WTemp_Simple <- 1 - (sum((data_wtemp$tc.B-data_wtemp$Fitted)^2)/sum((data_wtemp$tc.B-mean(data_wtemp$Fitted))^2))
+EF_WTemp_Mixed <- 1 - (sum((data_wtemp$tc.B-data_wtemp$Fitted_Mixed)^2)/sum((data_wtemp$tc.B-mean(data_wtemp$Fitted_Mixed))^2))
+
+model_statistics$EF <- c(EF_Simple, EF_Mixed, EF_WTemp_Simple, EF_WTemp_Mixed)
+
+#Calculate r
+r_Simple <- cor(data$tc.B,data$Fitted)
+r_Mixed <- cor(data$tc.B,data$Fitted_Mixed)
+r_WTemp_Simple <- cor(data_wtemp$tc.B,data_wtemp$Fitted)
+r_WTemp_Mixed <- cor(data_wtemp$tc.B,data_wtemp$Fitted_Mixed)
+
+model_statistics$r <- c(r_Simple,r_Mixed, r_WTemp_Simple, r_WTemp_Mixed)
+
+#Calculate bias
+Bias_Simple <- mean(data$tc.B-data$Fitted)
+Bias_Mixed <- mean(data$tc.B-data$Fitted_Mixed)
+Bias_WTemp_Simple <- mean(data_wtemp$tc.B-data_wtemp$Fitted)
+Bias_WTemp_Mixed <- mean(data_wtemp$tc.B-data_wtemp$Fitted_Mixed)
+
+model_statistics$Bias <- c(Bias_Simple, Bias_Mixed, Bias_WTemp_Simple, Bias_WTemp_Mixed)
+
+model_statistics
+
+
+```
 
   
 *This is only for my reference when writing the code in R*  
